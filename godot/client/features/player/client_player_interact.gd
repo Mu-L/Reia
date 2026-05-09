@@ -75,7 +75,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	# TODO
 	# DEV HACK: This will be cleaned up later and properly mapped.
 	# Press 'B' to bury the bone from the inventory.
-	if event is InputEventKey and (event as InputEventKey).keycode == KEY_B and event.pressed:
+	if event is InputEventKey and (event as InputEventKey).keycode == KEY_B and (event as InputEventKey).pressed:
 		var writer := StreamPeerBuffer.new()
 		writer.put_32(101) # Item ID 101 = Bone
 		NetworkRouter.client.queue_packet(0, OpCode.ID.BURY_ITEM, writer.data_array)

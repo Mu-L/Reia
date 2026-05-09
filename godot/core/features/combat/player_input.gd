@@ -34,7 +34,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	if not local_player_entity: return
 
 	# Example: Casting a Fireball
-	if event.is_action_pressed("cast_fireball"):
+	if event.is_action_pressed("ability_1"):
 		var target_entity := _get_current_target()
 		if not target_entity: return
 

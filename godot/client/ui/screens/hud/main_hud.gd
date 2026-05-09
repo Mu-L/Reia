@@ -1,8 +1,8 @@
 class_name MainHUD extends Control
 
-@onready var chat_box: ChatBox = $MarginContainer/BottomLeft/ChatBox
-@onready var health_bar: PlayerHealthBar = $MarginContainer/TopLeft/PlayerHealthBar
-@onready var interaction_prompt: InteractionPrompt = $CenterOffset/InteractionPrompt
+@onready var chat_box: ChatBox = $BottomLeftAnchor/ChatBox
+@onready var health_bar: PlayerHealthBar = $BottomCenterAnchor/PlayerHealthBar
+@onready var interaction_prompt: InteractionPrompt = $CenterAnchor/InteractionPrompt
 
 func _ready() -> void:
 	pass
