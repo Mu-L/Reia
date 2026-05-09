@@ -4,6 +4,9 @@ class_name ServerAuthNetworkSystem extends System
 var reader := StreamPeerBuffer.new()
 var writer := StreamPeerBuffer.new()
 
+# TODO: Temporary for demo
+var _has_spawned_dummy := false
+
 func query() -> QueryBuilder:
 	process_empty = true
 	return super.query()
@@ -66,3 +69,42 @@ func _process_auth(bucket: Dictionary) -> void:
 		# TODO: Make sure to eventually query EntityMap for all clients in the zone. Using dummy 0 for loopback demo.
 		var all_clients := PackedInt64Array([0])
 		NetworkRouter.server.queue_broadcast(all_clients, OpCode.ID.ENTITY_SPAWN, writer.data_array)
+
+		# TODO: Remove this hack once we have proper player movement and world interaction, to avoid confusion.
+		# DEMO HACK: Spawn the test dummy for the first player that connects!
+		if not _has_spawned_dummy:
+			_spawn_test_dummy()
+			_has_spawned_dummy = true
+
+func _spawn_test_dummy() -> void:
+	var dummy := Entity.new()
+	var net_id := -1
+
+	dummy.add_component(C_NetworkId.new(net_id))
+	dummy.add_component(C_Transform.new(Transform3D(Basis(), Vector3(0, 1, -5))))
+	dummy.add_component(C_Health.new(100, 100))
+	dummy.add_component(C_MonsterTag.new())
+	dummy.add_component(C_Username.new("Training Dummy"))
+
+	var body := StaticBody3D.new()
+	var col := CollisionShape3D.new()
+	col.shape = CapsuleShape3D.new()
+	body.add_child(col)
+	body.collision_layer = 0
+	body.set_collision_layer_value(13, true)
+	dummy.add_child(body)
+
+	GameOrchestrator.server_world.add_child(dummy)
+	cmd.add_entity(dummy)
+
+	writer.clear()
+	writer.put_64(net_id)
+	writer.put_string("PLAYER") # TODO: This could be improved possibly by using an enum type
+	writer.put_string("Training Dummy")
+	writer.put_float(0.0)
+	writer.put_float(1.0)
+	writer.put_float(-5.0)
+
+	var all_clients := PackedInt64Array([0])
+	NetworkRouter.server.queue_broadcast(all_clients, OpCode.ID.ENTITY_SPAWN, writer.data_array)
+	print("[SERVER] Spawned Test Dummy.")

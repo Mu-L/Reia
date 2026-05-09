@@ -13,7 +13,7 @@ func process(_entities: Array[Entity], _components: Array, _delta: float) -> voi
 	# Process all inventory-domain OpCodes
 	if buckets.has(OpCode.ID.PICKUP_ITEM):
 		_process_pickup(buckets[OpCode.ID.PICKUP_ITEM])
-		
+
 	if buckets.has(OpCode.ID.BURY_ITEM):
 		_process_bury(buckets[OpCode.ID.BURY_ITEM])
 
@@ -39,18 +39,42 @@ func _process_pickup(bucket: Dictionary) -> void:
 				_execute_pickup(player, target_item)
 
 func _execute_pickup(player: Entity, item: Entity) -> void:
-	print("Player picked up an item!")
+	print("[Server] Player picked up an item!")
 	var interactable := item.get_component(C_Interactable) as C_Interactable
-	
+
 	# Clone the item data to store in the player's relationship inventory
 	var item_data := C_Interactable.new(interactable.item_name, interactable.action_verb, interactable.interact_op_code)
 	cmd.add_relationship(player, Relationship.new(C_HasItem.new(1), item_data))
-	
+
 	# Despawn the physical item from the world
 	cmd.remove_entity(item)
 	var node := item as Node
 	if node: node.queue_free()
 
-func _process_bury(_bucket: Dictionary) -> void:
-	# Logic for finding the item in the relationship array and removing it
-	print("Player wants to bury an item, but this is not implemented yet!")
+func _process_bury(bucket: Dictionary[String, Variant]) -> void:
+	var ids: PackedInt64Array = bucket["ids"]
+	var offsets: PackedInt32Array = bucket["offsets"]
+	reader.data_array = bucket["data"]
+
+	for i in range(ids.size()):
+		var player := EntityMap.server.get_entity(ids[i])
+		if not player: continue
+
+		reader.seek(offsets[i])
+		var target_item_id := reader.get_32() # Client sends the ID of the item (e.g., 101)
+
+		# Look through all items the player has a C_HasItem relationship with
+		var inventory_rels: Array = player.get_relationships(Relationship.new(C_HasItem.new(), C_Interactable))
+		var rel_to_remove: Relationship = null
+		
+		for rel: Relationship in inventory_rels:
+			var interactable: C_Interactable = rel.target
+			if interactable and interactable.item_id == target_item_id:
+				rel_to_remove = rel
+				break
+
+		if rel_to_remove:
+			cmd.remove_relationship(player, rel_to_remove)
+			print("[Server] Player buried a bone!")
+		else:
+			push_warning("[Server] Player attempted to bury item %d but does not have it." % target_item_id)
