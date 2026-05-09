@@ -45,7 +45,7 @@ func _process_auth(bucket: Dictionary) -> void:
 		body.add_child(col)
 		player.add_child(body)
 
-		get_tree().current_scene.add_child(player)
+		GameOrchestrator.server_world.add_child(player)
 		cmd.add_entity(player)
 
 		# Send Auth Success uniquely back to the joining Client
