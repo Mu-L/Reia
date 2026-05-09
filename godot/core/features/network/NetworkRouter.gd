@@ -26,16 +26,17 @@ class NetworkChannel extends RefCounted:
 
 	## Sends a unique packet to a specific client
 	func queue_packet(target_id: int, op_code: int, payload: PackedByteArray) -> void:
-		var target_success := out_targets.push_back(target_id)
-		if not target_success:
+		var target_failed := out_targets.push_back(target_id)
+		if target_failed:
 			push_error("[NetworkRouter] Failed to queue target_id: %d" % target_id)
+			push_error(out_targets);
 			return
-		var op_success := out_ops.push_back(op_code)
-		if not op_success:
+		var op_failed := out_ops.push_back(op_code)
+		if op_failed:
 			push_error("[NetworkRouter] Failed to queue op_code: %d" % op_code)
 			return
-		var offset_success := out_offsets.push_back(out_data.size())
-		if not offset_success:
+		var offset_failed := out_offsets.push_back(out_data.size())
+		if offset_failed:
 			push_error("[NetworkRouter] Failed to queue offset for op_code: %d" % op_code)
 			return
 		out_data.append_array(payload)
@@ -43,19 +44,19 @@ class NetworkChannel extends RefCounted:
 	## Broadcasts the exact same payload to an array of clients
 	func queue_broadcast(target_ids: PackedInt64Array, op_code: int, payload: PackedByteArray) -> void:
 		# Track where the targets for this specific broadcast begin
-		var target_offsets_success := out_b_target_offsets.push_back(out_b_targets.size())
-		if not target_offsets_success:
+		var target_offsets_failed := out_b_target_offsets.push_back(out_b_targets.size())
+		if target_offsets_failed:
 			push_error("[NetworkRouter] Failed to queue broadcast target offset for op_code: %d" % op_code)
 			return
 		out_b_targets.append_array(target_ids)
 
 		# Track the data and opcode
-		var ops_success := out_b_ops.push_back(op_code)
-		if not ops_success:
+		var ops_failed := out_b_ops.push_back(op_code)
+		if ops_failed:
 			push_error("[NetworkRouter] Failed to queue broadcast op_code: %d" % op_code)
 			return
-		var data_offsets_success := out_b_data_offsets.push_back(out_b_data.size())
-		if not data_offsets_success:
+		var data_offsets_failed := out_b_data_offsets.push_back(out_b_data.size())
+		if data_offsets_failed:
 			push_error("[NetworkRouter] Failed to queue broadcast offset for op_code: %d" % op_code)
 			return
 		out_b_data.append_array(payload)
