@@ -48,6 +48,8 @@ func _process_spawns(bucket: Dictionary) -> void:
 			input_node.set("local_player_entity", entity)
 			entity.add_child(input_node)
 
+		# Can be improved by using a code that matches a prefab that's already set up
+
 		if entity_type == "PLAYER":
 			entity.add_component(C_Username.new(entity_name))
 
@@ -79,5 +81,4 @@ func _process_spawns(bucket: Dictionary) -> void:
 			entity.add_child(mesh_instance)
 			entity.add_child(static_body)
 
-		GameOrchestrator.client_world.add_child(entity)
 		cmd.add_entity(entity)
