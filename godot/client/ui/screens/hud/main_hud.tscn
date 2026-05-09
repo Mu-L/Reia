@@ -1,9 +1,11 @@
 [gd_scene format=3 uid="uid://b73nebop66qje"]
 
-[ext_resource type="Script" uid="uid://r51kpjrh6l4b" path="res://client/ui/components/atoms/main_hud.gd" id="1_fjenb"]
-[ext_resource type="Script" uid="uid://t012ego4c5mi" path="res://client/ui/components/organisms/chat_box.gd" id="2_manwo"]
+[ext_resource type="Script" uid="uid://r51kpjrh6l4b" path="res://client/ui/screens/hud/main_hud.gd" id="1_fjenb"]
+[ext_resource type="PackedScene" uid="uid://dhcwnhxeq8odg" path="res://client/ui/components/organisms/chat_box.tscn" id="2_6gvdi"]
+[ext_resource type="Script" uid="uid://ts6aje2x4blo" path="res://client/ui/components/molecules/player_health_bar.gd" id="3_i7b7o"]
+[ext_resource type="Script" uid="uid://lrlvy8wewlkd" path="res://client/ui/components/molecules/interaction_prompt.gd" id="4_i7b7o"]
 
-[node name="MainHud" type="Control" unique_id=1072708505]
+[node name="MainHUD" type="Control" unique_id=1926977285]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -11,14 +13,62 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_fjenb")
+metadata/_custom_type_script = "uid://r51kpjrh6l4b"
 
-[node name="ChatBox" type="VBoxContainer" parent="." unique_id=292383583]
+[node name="BottomLeftAnchor" type="MarginContainer" parent="." unique_id=1910807537]
 layout_mode = 1
-anchors_preset = 2
-anchor_top = 1.0
+anchors_preset = 15
+anchor_right = 1.0
 anchor_bottom = 1.0
-offset_top = -40.0
-offset_right = 40.0
+offset_top = 809.0
+offset_right = -1368.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 36
+theme_override_constants/margin_top = 0
+theme_override_constants/margin_right = 0
+theme_override_constants/margin_bottom = 36
+
+[node name="ChatBox" parent="BottomLeftAnchor" unique_id=183740472 instance=ExtResource("2_6gvdi")]
+layout_mode = 2
+
+[node name="Control" type="Control" parent="BottomLeftAnchor" unique_id=1042699614]
+layout_mode = 2
+
+[node name="BottomCenterAnchor" type="MarginContainer" parent="." unique_id=899224705]
+layout_mode = 1
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -210.5
+offset_top = -59.0
+offset_right = 210.5
+grow_horizontal = 2
 grow_vertical = 0
-script = ExtResource("2_manwo")
-metadata/_custom_type_script = "uid://t012ego4c5mi"
+theme_override_constants/margin_bottom = 36
+
+[node name="PlayerHealthBar" type="ProgressBar" parent="BottomCenterAnchor" unique_id=1081653531]
+layout_mode = 2
+script = ExtResource("3_i7b7o")
+metadata/_custom_type_script = "uid://ts6aje2x4blo"
+
+[node name="CenterAnchor" type="CenterContainer" parent="." unique_id=1580793528]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -20.0
+offset_top = -20.0
+offset_right = 20.0
+offset_bottom = 20.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="InteractionPrompt" type="CenterContainer" parent="CenterAnchor" unique_id=1862373767]
+layout_mode = 2
+script = ExtResource("4_i7b7o")
+metadata/_custom_type_script = "uid://lrlvy8wewlkd"

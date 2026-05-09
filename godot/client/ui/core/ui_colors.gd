@@ -11,3 +11,6 @@ class Base:
 
 	const CHIP_BLUE: Color = Color("#558edd", 1)
 	const CLEAR_BLUE: Color = Color("#5F9097", 1)
+
+class Action:
+	const DENY_RED: Color = Color("#dd5555", 1)
