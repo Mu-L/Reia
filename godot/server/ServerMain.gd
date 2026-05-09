@@ -36,6 +36,46 @@ func _ready() -> void:
 	else:
 		print("[SERVER] Offline mode enabled. Skipping network initialization.")
 
+	# Spawn the Training Dummy for the Demo
+	UIUtils.safe_connect(get_tree().create_timer(1.0).timeout, _spawn_test_dummy, "ServerMain _spawn_test_dummy")
+
+func _spawn_test_dummy() -> void:
+	var dummy := Entity.new()
+	var net_id := -1 # Negative IDs usually denote NPCs/Monsters
+
+	dummy.add_component(C_NetworkId.new(net_id))
+	dummy.add_component(C_Transform.new(Transform3D(Basis(), Vector3(0, 1, -5))))
+	dummy.add_component(C_Health.new(100, 100))
+	dummy.add_component(C_MonsterTag.new())
+	dummy.add_component(C_Username.new("Training Dummy"))
+
+	# Add a physical body so it can be hit by raycasts
+	var body := StaticBody3D.new()
+	var col := CollisionShape3D.new()
+	var shape := CapsuleShape3D.new()
+	col.shape = shape
+	body.add_child(col)
+
+	# Set to Layer 13 (Enemy Hurtbox)
+	body.collision_layer = 0
+	body.set_collision_layer_value(13, true)
+	dummy.add_child(body)
+
+	GameOrchestrator.server_world.add_entity(dummy)
+
+	# Force broadcast it so clients see it immediately
+	var writer := StreamPeerBuffer.new()
+	writer.put_64(net_id)
+	writer.put_string("PLAYER") # Send as player so the client uses the Capsule Mesh
+	writer.put_string("Training Dummy")
+	writer.put_float(0.0)
+	writer.put_float(1.0)
+	writer.put_float(-5.0)
+
+	var all_clients := PackedInt64Array([0])
+	NetworkRouter.server.queue_broadcast(all_clients, OpCode.ID.ENTITY_SPAWN, writer.data_array)
+	print("[SERVER] Spawned Test Dummy.")
+
 func _on_rust_packets(buckets: Dictionary) -> void:
 	NetworkRouter.server.incoming_buckets = buckets
 

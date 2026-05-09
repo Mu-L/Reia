@@ -37,13 +37,18 @@ func _ready() -> void:
 	else:
 		print("[CLIENT] Offline mode enabled. Skipping network initialization.")
 
-	# Simulate Auth Success for the Demo so we can actually test the 3D world!
-	call_deferred("_simulate_auth_success")
+	# We wait one frame to ensure the Orchestrator loopback is fully wired,
+	# then we securely send our AuthRequest packet!
+	call_deferred("_send_auth_request")
 
-func _simulate_auth_success() -> void:
-	print("[CLIENT] Auth successful! Loading world...")
-	# This automatically loads the 3D meshes for the Waterbrook zone
-	SceneManager.teleport_to_zone(Zone.ID.WATERBROOK)
+func _send_auth_request() -> void:
+	var writer := StreamPeerBuffer.new()
+	writer.put_string(UserPreferences.get_username())
+	writer.put_string("dummy_token")
+
+	# Target 0 sends it to the Server
+	NetworkRouter.client.queue_packet(0, OpCode.ID.AUTH_REQUEST, writer.data_array)
+	print("[CLIENT] Sent AuthRequest. Awaiting Server approval...")
 
 func _on_rust_packets(buckets: Dictionary) -> void:
 	NetworkRouter.client.incoming_buckets = buckets

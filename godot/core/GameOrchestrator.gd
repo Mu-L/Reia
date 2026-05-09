@@ -167,12 +167,27 @@ func _push_to_inbox(destination: NetworkRouter.NetworkChannel, op: int, target: 
 	var success_offsets := (bucket["offsets"] as PackedInt32Array).push_back((bucket["data"] as PackedByteArray).size())
 	if not success_offsets:
 		push_error("[GameOrchestrator] Failed to queue offset for op_code: %d" % op)
+	var offsets := bucket["offsets"] as PackedInt32Array
 	@warning_ignore("unsafe_cast")
 	var success_ids := (bucket["ids"] as PackedInt64Array).push_back(target)
 	if not success_ids:
 		push_error("[GameOrchestrator] Failed to queue id for op_code: %d" % op)
+	var ids := bucket["ids"] as PackedInt64Array
 	@warning_ignore("unsafe_cast")
-	(bucket["data"] as PackedByteArray).append_array(payload)
+	var data := bucket["data"] as PackedByteArray
+
+	var offsets_failed := offsets.push_back(data.size())
+	if offsets_failed:
+		push_error("[GameOrchestrator] Failed to queue offset for op_code: %d" % op)
+	var ids_failed := ids.push_back(target)
+	if ids_failed:
+		push_error("[GameOrchestrator] Failed to queue id for op_code: %d" % op)
+	data.append_array(payload)
+
+	bucket["offsets"] = offsets
+	bucket["ids"] = ids
+	bucket["data"] = data
+
 
 # ==========================================
 # UTILITIES
@@ -183,13 +198,20 @@ func _teardown() -> void:
 	if active_server:
 		print("[GameOrchestrator] - Teardown: Removing Active Server")
 		active_server.queue_free()
+		active_server.free()
 		active_server = null
+	if server_world:
+		print("[GameOrchestrator] - Teardown: Removing Server World")
+		server_world.free()
+		server_world = null
 	if active_client:
 		print("[GameOrchestrator] - Teardown: Removing Active Client")
-		active_client.queue_free()
+		active_client.free()
 		active_client = null
-	server_world = null
-	client_world = null
+	if client_world:
+		print("[GameOrchestrator] - Teardown: Removing Client World")
+		client_world.free()
+		client_world = null
 	local_client_net_id = 0
 	NetworkRouter.clear_all()
 	EntityMap.clear_all()
