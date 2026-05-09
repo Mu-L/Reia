@@ -4,12 +4,12 @@ var writer := StreamPeerBuffer.new()
 
 func query() -> QueryBuilder:
 	# We only care about entities that have moved (we would tag them with C_NetworkSyncDirty in Physics)
-	return q.with_all([C_Transform, C_NetworkSyncDirty])
+	return q.with_all([C_Transform, C_NetworkSyncDirty]).iterate([C_Transform])
 
 func process(entities: Array[Entity], components: Array, _delta: float) -> void:
 	if entities.is_empty(): return
 
-	var transforms: Array[Component] = components[0]
+	var transforms: Array = components[0]
 	writer.clear()
 
 	# Header: How many entities are updating?
@@ -18,7 +18,7 @@ func process(entities: Array[Entity], components: Array, _delta: float) -> void:
 	# Payload: Pack the state
 	for i in range(entities.size()):
 		var entity := entities[i]
-		var trans := transforms[i] as C_Transform
+		var trans: C_Transform = transforms[i]
 		var pos := trans.transform.origin
 
 		# Get the network ID (Positive for players, Negative for monsters)

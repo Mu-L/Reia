@@ -4,10 +4,13 @@ class_name NameplateObserver extends Observer
 func watch() -> Resource:
 	return C_Username
 
+func match() -> QueryBuilder:
+	return q.with_all([C_Username, C_VisualNode])
+
 func on_component_added(entity: Entity, component: Resource) -> void:
 	var comp := component as C_Username
-	var node3d := entity as Node as Node3D
-	if not node3d: return
+	var vis := entity.get_component(C_VisualNode) as C_VisualNode
+	if not vis or not is_instance_valid(vis.node): return
 	
 	var label := Label3D.new()
 	label.text = comp.username
@@ -19,4 +22,4 @@ func on_component_added(entity: Entity, component: Resource) -> void:
 	if entity.has_component(C_LocalPlayer):
 		label.modulate = UIColors.Base.SUCCESS_GREEN # You are green!
 		
-	node3d.add_child(label)
+	vis.node.add_child(label)

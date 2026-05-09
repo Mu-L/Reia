@@ -42,6 +42,10 @@ static func _register_network_receivers(world: World) -> void:
 	world.add_system(chat_net)
 
 static func _register_physics(world: World) -> void:
+	var player_input := ServerPlayerInputSystem.new()
+	player_input.group = SystemGroups.PHYSICS # Run before physics moves the body
+	world.add_system(player_input)
+
 	var char_physics := ServerCharacterPhysicsSystem.new()
 	char_physics.group = SystemGroups.PHYSICS
 	world.add_system(char_physics)

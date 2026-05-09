@@ -40,6 +40,10 @@ static func _register_network_receivers(world: World) -> void:
 	state_sync.group = SystemGroups.PRE_PROCESS
 	world.add_system(state_sync)
 
+	#var chat_net := ClientChatNetworkSystem.new()
+	#chat_net.group = SystemGroups.PRE_PROCESS
+	#world.add_system(chat_net)
+
 
 static func _register_prediction_systems(world: World) -> void:
 	# Smoothly lerps visual Godot nodes to match C_NetworkSync targets

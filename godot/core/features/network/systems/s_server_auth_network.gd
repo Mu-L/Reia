@@ -33,19 +33,21 @@ func _process_auth(bucket: Dictionary) -> void:
 
 		# Construct the logical Server Player Entity
 		var player := Entity.new()
-		player.add_component(C_NetworkId.new(net_id))
-		player.add_component(C_Transform.new(Transform3D(Basis(), Vector3(0, 5, 0))))
-		player.add_component(C_Velocity.new())
-		player.add_component(C_MoveInput.new())
-		player.add_component(C_CharacterBody3D.new())
-		player.add_component(C_PlayerTag.new())
-		player.add_component(C_Username.new(username))
 
 		# Attach a physical collision body for movement tracking
 		var body := CharacterBody3D.new()
 		var col := CollisionShape3D.new()
 		col.shape = CapsuleShape3D.new()
 		body.add_child(col)
+
+		player.add_component(C_NetworkId.new(net_id))
+		player.add_component(C_Transform.new(Transform3D(Basis(), Vector3(0, 5, 0))))
+		player.add_component(C_Velocity.new())
+		player.add_component(C_MoveInput.new())
+		player.add_component(C_CharacterBody3D.new(body))
+		player.add_component(C_PlayerTag.new())
+		player.add_component(C_Username.new(username))
+
 		player.add_child(body)
 
 		GameOrchestrator.server_world.add_child(player)

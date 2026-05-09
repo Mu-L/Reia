@@ -34,6 +34,11 @@ func _process_spawns(bucket: Dictionary) -> void:
 		entity.add_component(C_NetworkId.new(net_id))
 		entity.add_component(C_MovementSync.new(Transform3D(Basis(), Vector3(tx, ty, tz))))
 
+		# NEW: Create a spatial root for meshes
+		var spatial_root := Node3D.new()
+		entity.add_child(spatial_root)
+		entity.add_component(C_VisualNode.new(spatial_root))
+
 		if net_id == GameOrchestrator.local_client_net_id:
 			entity.add_component(C_LocalPlayer.new())
 
@@ -41,7 +46,7 @@ func _process_spawns(bucket: Dictionary) -> void:
 			cam.position = Vector3(0, 2, 4)
 			cam.current = true
 			cam.set_script(preload("res://client/features/player/client_player_interact.gd"))
-			entity.add_child(cam)
+			spatial_root.add_child(cam) # Attach cam to the moving root
 
 			var input_node := Node.new()
 			input_node.set_script(preload("res://core/features/combat/player_input.gd"))
@@ -55,7 +60,7 @@ func _process_spawns(bucket: Dictionary) -> void:
 
 			var mesh_instance := MeshInstance3D.new()
 			mesh_instance.mesh = CapsuleMesh.new()
-			entity.add_child(mesh_instance)
+			spatial_root.add_child(mesh_instance)
 
 		elif entity_type == "BONE":
 			entity.add_component(C_Interactable.new(entity_name, ActionVerb.ID.PICKUP, OpCode.ID.PICKUP_ITEM))
@@ -78,7 +83,7 @@ func _process_spawns(bucket: Dictionary) -> void:
 			static_body.collision_layer = 0
 			static_body.set_collision_layer_value(14, true)
 
-			entity.add_child(mesh_instance)
-			entity.add_child(static_body)
+			spatial_root.add_child(mesh_instance) # Attach mesh to moving root
+			spatial_root.add_child(static_body)
 
 		cmd.add_entity(entity)
