@@ -72,6 +72,15 @@ func _unhandled_input(event: InputEvent) -> void:
 		if _current_target and _current_target.has_component(C_Health):
 			_send_attack_request(_current_target)
 
+	# TODO
+	# DEV HACK: This will be cleaned up later and properly mapped.
+	# Press 'B' to bury the bone from the inventory.
+	if event is InputEventKey and (event as InputEventKey).keycode == KEY_B and event.pressed:
+		var writer := StreamPeerBuffer.new()
+		writer.put_32(101) # Item ID 101 = Bone
+		NetworkRouter.client.queue_packet(0, OpCode.ID.BURY_ITEM, writer.data_array)
+		print("[Client] Sent Bury request for Bone.")
+
 func _send_interaction_request(target_entity: Entity, op_code: int) -> void:
 	var net_id := EntityMap.client.get_network_id(target_entity)
 	var writer := StreamPeerBuffer.new()
