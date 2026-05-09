@@ -78,7 +78,9 @@ func _hard_load_instance(map_uid: String) -> void:
 	get_tree().root.add_child(loader)
 
 	if GameOrchestrator.client_world:
-		GameOrchestrator.client_world.purge()
+		for entity: Entity in GameOrchestrator.client_world.entities.duplicate():
+			if not entity.has_component(C_LocalPlayer):
+				GameOrchestrator.client_world.remove_entity(entity)
 
 	var err := ResourceLoader.load_threaded_request(_loading_target)
 	if err != OK:
