@@ -10,7 +10,8 @@ func query() -> QueryBuilder:
 func process(_entities: Array[Entity], _components: Array, _delta: float) -> void:
 	var buckets := NetworkRouter.client.incoming_buckets
 	if buckets.has(OpCode.ID.ENTITY_SPAWN):
-		print("[ClientEntitySpawnSystem] Processing ENTITY_SPAWN bucket with %d spawns" % buckets[OpCode.ID.ENTITY_SPAWN]["ids"].size())
+		@warning_ignore("unsafe_cast")
+		print("[ClientEntitySpawnSystem] Processing ENTITY_SPAWN bucket with %d spawns" % (buckets[OpCode.ID.ENTITY_SPAWN]["ids"] as PackedInt64Array).size())
 		_process_spawns(buckets[OpCode.ID.ENTITY_SPAWN])
 
 func _process_spawns(bucket: Dictionary) -> void:
@@ -35,13 +36,13 @@ func _process_spawns(bucket: Dictionary) -> void:
 
 		if net_id == GameOrchestrator.local_client_net_id:
 			entity.add_component(C_LocalPlayer.new())
-			
+
 			var cam := Camera3D.new()
 			cam.position = Vector3(0, 2, 4)
 			cam.current = true
 			cam.set_script(preload("res://client/features/player/client_player_interact.gd"))
 			entity.add_child(cam)
-			
+
 			var input_node := Node.new()
 			input_node.set_script(preload("res://core/features/combat/player_input.gd"))
 			input_node.set("local_player_entity", entity)
@@ -49,14 +50,14 @@ func _process_spawns(bucket: Dictionary) -> void:
 
 		if entity_type == "PLAYER":
 			entity.add_component(C_Username.new(entity_name))
-			
+
 			var mesh_instance := MeshInstance3D.new()
 			mesh_instance.mesh = CapsuleMesh.new()
 			entity.add_child(mesh_instance)
 
 		elif entity_type == "BONE":
 			entity.add_component(C_Interactable.new(entity_name, ActionVerb.ID.PICKUP, OpCode.ID.PICKUP_ITEM))
-			
+
 			var mesh_instance := MeshInstance3D.new()
 			var box := BoxMesh.new()
 			box.size = Vector3(0.2, 0.1, 0.6)
@@ -64,19 +65,19 @@ func _process_spawns(bucket: Dictionary) -> void:
 			mat.albedo_color = Color("#E3DAC9")
 			box.material = mat
 			mesh_instance.mesh = box
-			
+
 			var static_body := StaticBody3D.new()
 			var col := CollisionShape3D.new()
 			var shape := BoxShape3D.new()
 			shape.size = box.size
 			col.shape = shape
-			
+
 			static_body.add_child(col)
 			static_body.collision_layer = 0
 			static_body.set_collision_layer_value(14, true)
-			
+
 			entity.add_child(mesh_instance)
 			entity.add_child(static_body)
 
-		get_tree().current_scene.add_child(entity)
+		GameOrchestrator.client_world.add_child(entity)
 		cmd.add_entity(entity)
