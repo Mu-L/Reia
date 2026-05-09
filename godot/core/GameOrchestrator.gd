@@ -164,14 +164,8 @@ func _push_to_inbox(destination: NetworkRouter.NetworkChannel, op: int, target: 
 
 	var bucket := destination.incoming_buckets[op]
 	@warning_ignore("unsafe_cast")
-	var success_offsets := (bucket["offsets"] as PackedInt32Array).push_back((bucket["data"] as PackedByteArray).size())
-	if not success_offsets:
-		push_error("[GameOrchestrator] Failed to queue offset for op_code: %d" % op)
 	var offsets := bucket["offsets"] as PackedInt32Array
 	@warning_ignore("unsafe_cast")
-	var success_ids := (bucket["ids"] as PackedInt64Array).push_back(target)
-	if not success_ids:
-		push_error("[GameOrchestrator] Failed to queue id for op_code: %d" % op)
 	var ids := bucket["ids"] as PackedInt64Array
 	@warning_ignore("unsafe_cast")
 	var data := bucket["data"] as PackedByteArray
@@ -188,7 +182,6 @@ func _push_to_inbox(destination: NetworkRouter.NetworkChannel, op: int, target: 
 	bucket["ids"] = ids
 	bucket["data"] = data
 
-
 # ==========================================
 # UTILITIES
 # ==========================================
@@ -197,7 +190,6 @@ func _teardown() -> void:
 	print("\nTearing down existing sessions and worlds...");
 	if active_server:
 		print("[GameOrchestrator] - Teardown: Removing Active Server")
-		active_server.queue_free()
 		active_server.free()
 		active_server = null
 	if server_world:
