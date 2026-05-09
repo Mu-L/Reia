@@ -56,11 +56,15 @@ static func _register_inventory(world: World) -> void:
 	validator.group = SystemGroups.VALIDATION
 	world.add_system(validator)
 
-	var execution := InventoryExecutionSystem.new()
-	execution.group = SystemGroups.EXECUTION
-	world.add_system(execution)
+	var inven_exec := InventoryExecutionSystem.new()
+	inven_exec.group = SystemGroups.EXECUTION
+	world.add_system(inven_exec)
 
 static func _register_combat(world: World) -> void:
+	var skill_exec := ServerSkillExecutionSystem.new()
+	skill_exec.group = SystemGroups.COMBAT
+	world.add_system(skill_exec)
+
 	var dmg := DamageCalculationSystem.new()
 	dmg.group = SystemGroups.COMBAT
 	world.add_system(dmg)
