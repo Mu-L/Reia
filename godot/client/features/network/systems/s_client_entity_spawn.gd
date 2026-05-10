@@ -10,8 +10,6 @@ func query() -> QueryBuilder:
 func process(_entities: Array[Entity], _components: Array, _delta: float) -> void:
 	var buckets := NetworkRouter.client.incoming_buckets
 	if buckets.has(OpCode.ID.ENTITY_SPAWN):
-		@warning_ignore("unsafe_cast")
-		print("[ClientEntitySpawnSystem] Processing ENTITY_SPAWN bucket with %d spawns" % (buckets[OpCode.ID.ENTITY_SPAWN]["ids"] as PackedInt64Array).size())
 		_process_spawns(buckets[OpCode.ID.ENTITY_SPAWN])
 
 func _process_spawns(bucket: Dictionary) -> void:

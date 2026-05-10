@@ -37,8 +37,20 @@ func process(entities: Array[Entity], components: Array, _delta: float) -> void:
 
 	NetworkRouter.server.queue_broadcast(all_connected_clients, OpCode.ID.STATE_SYNC, writer.data_array)
 
+## Dynamically grab all valid player IDs so the broadcast array isn't empty.
 func _get_all_active_clients() -> PackedInt64Array:
-	# Logic to return all active keys from EntityMap.server._net_id_to_entity where ID > 0
-	var ids: PackedInt64Array = PackedInt64Array()
-	# ... extraction logic ...
+	var ids := PackedInt64Array()
+
+	for net_id: int in EntityMap.server._net_id_to_entity.keys():
+		if net_id > 0: # 0 is server, negatives are NPCs
+			var ids_failed := ids.push_back(net_id)
+			if ids_failed:
+				push_error("[ServerStateSyncSystem] Failed to queue client ID %d for state sync broadcast!" % net_id)
+
+	# Fallback for local loopback demo if it executes before the player fully mounts
+	if ids.is_empty():
+		var ids_failed := ids.push_back(0)
+		if ids_failed:
+			push_error("[ServerStateSyncSystem] Failed to queue fallback client ID 0 for state sync broadcast!")
+
 	return ids
