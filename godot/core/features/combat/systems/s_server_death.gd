@@ -48,5 +48,4 @@ func _drop_bone(dead_monster: Entity) -> void:
 	static_body.set_collision_layer_value(14, true)
 	
 	# Spawn it into the server world
-	get_tree().current_scene.add_child(bone_entity)
 	cmd.add_entity(bone_entity)

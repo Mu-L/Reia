@@ -13,9 +13,8 @@ func process(entities: Array[Entity], _components: Array, delta: float) -> void:
 			if spawner.timer <= 0.0:
 				var monster: Entity = ServerPrefabCache.get_headless_prefab(spawner.prefab).instantiate()
 				monster.add_relationship(Relationship.new(C_SpawnedBy.new(), entity))
-				
-				get_tree().current_scene.add_child(monster)
+
 				ECS.world.add_entity(monster)
-				
+
 				spawner.current_active += 1
 				spawner.timer = spawner.respawn_delay
