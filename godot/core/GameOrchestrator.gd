@@ -28,7 +28,9 @@ var server_world: World:
 			if not server_world.tree_exited.is_connected(_on_server_world_exited):
 				UIUtils.safe_connect(server_world.tree_exited, _on_server_world_exited, "GameOrchestrator tree_exited")
 		server_world_changed.emit(server_world)
-		assert(GECSEditorDebuggerMessages.set_world(server_world) if ECS.debug else true, 'Debug Data')
+		if ECS.debug:
+			assert(GECSEditorDebuggerMessages.set_world(server_world) if ECS.debug else true, 'Debug Data')
+
 var client_world: World:
 	get:
 		return client_world
@@ -42,7 +44,8 @@ var client_world: World:
 			if not client_world.tree_exited.is_connected(_on_client_world_exited):
 				UIUtils.safe_connect(client_world.tree_exited, _on_client_world_exited, "GameOrchestrator tree_exited")
 		client_world_changed.emit(client_world)
-		assert(GECSEditorDebuggerMessages.set_world(client_world) if ECS.debug else true, 'Debug Data')
+		if ECS.debug:
+			assert(GECSEditorDebuggerMessages.set_world(client_world) if ECS.debug else true, 'Debug Data')
 
 func _ready() -> void:
 	# Listen to UI intents globally
@@ -125,15 +128,20 @@ func _physics_process(_delta: float) -> void:
 		_simulate_network_loopback(NetworkRouter.server, NetworkRouter.client)
 
 func _simulate_network_loopback(source: NetworkChannel, destination: NetworkChannel) -> void:
+	# Determine the Sender ID to stamp on the incoming packets
+	var sender_id := 0
+	if source == NetworkRouter.client:
+		# If the client has authenticated, stamp its packets with its real Net ID
+		sender_id = local_client_net_id
+
 	# Loopback Targeted Packets
 	for i in range(source.out_ops.size()):
 		var op := source.out_ops[i]
-		var target := source.out_targets[i]
 		var start := source.out_offsets[i]
 		var end := source.out_offsets[i + 1] if i + 1 < source.out_offsets.size() else source.out_data.size()
 		var payload := source.out_data.slice(start, end)
 
-		_push_to_inbox(destination, op, target, payload)
+		_push_to_inbox(destination, op, sender_id, payload)
 
 	# Loopback Broadcast Packets (Flattened Array Parsing)
 	for i in range(source.out_b_ops.size()):
@@ -149,12 +157,14 @@ func _simulate_network_loopback(source: NetworkChannel, destination: NetworkChan
 		var d_end := source.out_b_data_offsets[i + 1] if i + 1 < source.out_b_data_offsets.size() else source.out_b_data.size()
 		var payload := source.out_b_data.slice(d_start, d_end)
 
+		# For solo play, we just push a single copy of the broadcast to the client
+		# without worrying about iterating an empty target array.
 		for target in targets:
-			_push_to_inbox(destination, op, target, payload)
+			_push_to_inbox(destination, op, sender_id, payload)
 
 	source.reset_outbox()
 
-func _push_to_inbox(destination: NetworkRouter.NetworkChannel, op: int, target: int, payload: PackedByteArray) -> void:
+func _push_to_inbox(destination: NetworkChannel, op: int, sender_id: int, payload: PackedByteArray) -> void:
 	if not destination.incoming_buckets.has(op):
 		destination.incoming_buckets[op] = {
 			"ids": PackedInt64Array(),
@@ -173,7 +183,9 @@ func _push_to_inbox(destination: NetworkRouter.NetworkChannel, op: int, target: 
 	var offsets_failed := offsets.push_back(data.size())
 	if offsets_failed:
 		push_error("[GameOrchestrator] Failed to queue offset for op_code: %d" % op)
-	var ids_failed := ids.push_back(target)
+
+	# We log the sender_id here so the Server knows who it came from
+	var ids_failed := ids.push_back(sender_id)
 	if ids_failed:
 		push_error("[GameOrchestrator] Failed to queue id for op_code: %d" % op)
 	data.append_array(payload)
