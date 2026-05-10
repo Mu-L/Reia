@@ -1,12 +1,20 @@
-use crate::net::packets::IncomingPacket;
+use crate::net::packets::{ IncomingPacket, OutgoingPacket };
 use crate::state::world_state::WorldState;
-use flume::Sender;
+
+use dashmap::DashMap;
+use flume::{ Receiver, Sender };
 use quinn::crypto::rustls::QuicServerConfig;
-use quinn::{ Endpoint, ServerConfig };
+use quinn::{ Connection, Endpoint, ServerConfig };
 use std::net::SocketAddr;
 use std::sync::Arc;
+use std::sync::atomic::{ AtomicI64, Ordering };
 
-pub async fn start_quinn_server(port: u16, tx: Sender<IncomingPacket>, _state: Arc<WorldState>) {
+pub async fn start_quinn_server(
+    port: u16,
+    tx: Sender<IncomingPacket>,
+    rx_out: Receiver<OutgoingPacket>,
+    _state: Arc<WorldState>
+) {
     // Explicitly install the Crypto Provider for rustls
     let _ = rustls::crypto::ring::default_provider().install_default();
 
@@ -33,16 +41,52 @@ pub async fn start_quinn_server(port: u16, tx: Sender<IncomingPacket>, _state: A
     let endpoint = Endpoint::server(server_config, addr).unwrap();
     tracing::info!("UDP Server listening on {}", addr);
 
+    // Thread-safe map to store connected clients for routing outbound packets
+    let connections: Arc<DashMap<i64, Connection>> = Arc::new(DashMap::new());
+    let connections_for_out = connections.clone();
+
+    // Spawn the outgoing packet router task
+    tokio::spawn(async move {
+        while let Ok(packet) = rx_out.recv_async().await {
+            // Find the correct client connection
+            if let Some(conn) = connections_for_out.get(&packet.target_id) {
+                let mut buffer = Vec::with_capacity(2 + packet.payload.len());
+                buffer.extend_from_slice(&packet.op_code.to_le_bytes());
+                buffer.extend_from_slice(&packet.payload);
+
+                if conn.value().send_datagram(buffer.into()).is_err() {
+                    tracing::warn!("Failed to send datagram to client {}", packet.target_id);
+                }
+            }
+        }
+    });
+
+    // Generate sequential client connection IDs
+    let client_id_counter = Arc::new(AtomicI64::new(1));
+
     // Listen for connections asynchronously
     while let Some(conn) = endpoint.accept().await {
         let tx_clone = tx.clone();
+        let connections_clone = connections.clone();
+        let id_counter = client_id_counter.clone();
 
         tokio::spawn(async move {
             match conn.await {
                 Ok(connection) => {
-                    tracing::info!("Client Connected: {}", connection.remote_address());
+                    let client_id = id_counter.fetch_add(1, Ordering::SeqCst);
+                    connections_clone.insert(client_id, connection.clone());
+                    tracing::info!(
+                        "Client Connected: {} (Connection ID: {})",
+                        connection.remote_address(),
+                        client_id
+                    );
                     // Route to connection handler (reading streams/datagrams)
-                    crate::net::connection::handle_client(connection, tx_clone).await;
+                    crate::net::connection::handle_client(
+                        client_id,
+                        connection,
+                        tx_clone,
+                        connections_clone
+                    ).await;
                 }
                 Err(e) => tracing::error!("Connection failed: {}", e),
             }

@@ -62,7 +62,7 @@ impl RustCore {
 
         // Create the cross-thread bridge
         let (tx, rx) = flume::unbounded::<IncomingPacket>();
-        let (tx_out, _rx_out) = flume::unbounded::<OutgoingPacket>();
+        let (tx_out, rx_out) = flume::unbounded::<OutgoingPacket>();
 
         self.rx_from_net = Some(rx);
         self.tx_to_net = Some(tx_out);
@@ -70,7 +70,7 @@ impl RustCore {
         // Spawn the Quinn Server in the background
         let state_clone = self.world_state.clone();
         rt.spawn(async move {
-            start_quinn_server(port, tx, state_clone).await;
+            start_quinn_server(port, tx, rx_out, state_clone).await;
         });
 
         godot_print!("[Rust] Backend initialized successfully.");

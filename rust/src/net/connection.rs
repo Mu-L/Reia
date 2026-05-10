@@ -1,15 +1,20 @@
 use crate::net::{ op_codes::OpCode, packets::IncomingPacket };
+use dashmap::DashMap;
 use flume::Sender;
 use quinn::Connection;
+use std::sync::Arc;
 
-pub async fn handle_client(conn: Connection, tx: Sender<IncomingPacket>) {
-    let client_id = 1; // In reality, establish this during auth handshake
-
+pub async fn handle_client(
+    client_id: i64,
+    conn: Connection,
+    tx: Sender<IncomingPacket>,
+    connections: Arc<DashMap<i64, Connection>>
+) {
     // Loop to read Unreliable Datagrams (Movement/Physics)
     loop {
         match conn.read_datagram().await {
             Ok(bytes) => {
-                // With rkyv, we would use zero-copy checking here:
+                // NOTE: With rkyv, we would use zero-copy checking here:
                 // let archived = rkyv::check_archived_root::<PlayerInput>(&bytes).unwrap();
                 // For the FFI bridge, we can just forward the bytes to Godot.
 
@@ -36,7 +41,7 @@ pub async fn handle_client(conn: Connection, tx: Sender<IncomingPacket>) {
                         // if valid_op == OpCode::InputTick { crate::math::process_input(...) }
 
                         let packet = IncomingPacket {
-                            client_id,
+                            client_id, // Safely stamp with server-generated ID
                             op_code: op_code_raw, // Pass the raw u16 up the bridge
                             payload: bytes.to_vec(), // Pass the full payload for Godot/rkyv to parse
                         };
@@ -64,4 +69,7 @@ pub async fn handle_client(conn: Connection, tx: Sender<IncomingPacket>) {
             }
         }
     }
+
+    // Clean up connection map on disconnect
+    connections.remove(&client_id);
 }
