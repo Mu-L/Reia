@@ -33,6 +33,22 @@ class EntityMapNamespace extends RefCounted:
 	func get_network_id(entity: Entity) -> int:
 		return _ecs_id_to_net_id.get(entity.ecs_id, 0)
 
+	## Dynamically aggregates all valid connected player IDs for broadcasts.
+	func get_all_active_clients() -> PackedInt64Array:
+		var ids := PackedInt64Array()
+		for net_id: int in _net_id_to_entity.keys():
+			if net_id > 0: # 0 is server, negatives are NPCs/Dummies
+				var ids_failed := ids.push_back(net_id)
+				if ids_failed:
+					push_error("[EntityMap] Failed to push active client ID: %d" % net_id)
+
+		# Fallback for local loopback demo if it executes before the player fully mounts
+		if ids.is_empty():
+			var ids_failed := ids.push_back(0)
+			if ids_failed:
+				push_error("[EntityMap] Failed to push fallback client ID 0 for broadcast!")
+		return ids
+
 	func clear() -> void:
 		_net_id_to_entity.clear()
 		_ecs_id_to_net_id.clear()

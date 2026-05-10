@@ -22,13 +22,10 @@ func _on_text_submitted(text: String) -> void:
 func _on_message_received(sender: String, message: String) -> void:
 	chat_log.append_text("[b]%s:[/b] %s\n" % [sender, message])
 
-func _input(event: InputEvent) -> void:
-	# _unhandled_input not _input to ensure it bypasses UI blockers
+func _unhandled_key_input(event: InputEvent) -> void:
 	if event is InputEventKey:
 		var key_event := event as InputEventKey
 		if key_event.keycode == KEY_ENTER and key_event.pressed:
 			if not input_field.has_focus():
-				# Call deferred to prevent the line edit from instantly
-				# consuming the Enter key stroke that focused it
-				input_field.call_deferred("grab_focus")
+				input_field.grab_focus()
 				get_viewport().set_input_as_handled()

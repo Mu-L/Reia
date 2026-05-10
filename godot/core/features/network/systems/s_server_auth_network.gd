@@ -28,6 +28,8 @@ func _process_auth(bucket: Dictionary) -> void:
 		var username := reader.get_string()
 		var _token := reader.get_string()
 
+		# TODO: Validate the token and username against a database or authentication service.
+		# For now, we will skip this step and assume all auth requests are valid.
 		# Generate a dummy Network ID
 		var net_id := randi() % 1000000 + 1
 
@@ -68,8 +70,10 @@ func _process_auth(bucket: Dictionary) -> void:
 		writer.put_float(5.0) # Y
 		writer.put_float(0.0) # Z
 
-		# TODO: Make sure to eventually query EntityMap for all clients in the zone. Using dummy 0 for loopback demo.
-		var all_clients := PackedInt64Array([0])
+		# Automatically fetch the centralized list to broadcast the spawn
+		# TODO: We'll want to optimize this by mantaining a separate list
+		# and also a list of nearby clients too.
+		var all_clients := EntityMap.server.get_all_active_clients()
 		NetworkRouter.server.queue_broadcast(all_clients, OpCode.ID.ENTITY_SPAWN, writer.data_array)
 
 		# TODO: Remove this hack once we have proper player movement and world interaction, to avoid confusion.
@@ -107,6 +111,6 @@ func _spawn_test_dummy() -> void:
 	writer.put_float(1.0)
 	writer.put_float(-5.0)
 
-	var all_clients := PackedInt64Array([0])
+	var all_clients := EntityMap.server.get_all_active_clients()
 	NetworkRouter.server.queue_broadcast(all_clients, OpCode.ID.ENTITY_SPAWN, writer.data_array)
 	print("[SERVER] Spawned Test Dummy.")

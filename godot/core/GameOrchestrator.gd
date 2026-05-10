@@ -159,7 +159,7 @@ func _simulate_network_loopback(source: NetworkChannel, destination: NetworkChan
 
 		# For solo play, we just push a single copy of the broadcast to the client
 		# without worrying about iterating an empty target array.
-		for target in targets:
+		if not targets.is_empty():
 			_push_to_inbox(destination, op, sender_id, payload)
 
 	source.reset_outbox()

@@ -11,6 +11,7 @@ func process(_entities: Array[Entity], _components: Array, _delta: float) -> voi
 	var buckets := NetworkRouter.client.incoming_buckets
 	if buckets.has(OpCode.ID.ENTITY_SPAWN):
 		_process_spawns(buckets[OpCode.ID.ENTITY_SPAWN])
+		NetworkRouter.client.clear_operation(OpCode.ID.ENTITY_SPAWN)
 
 func _process_spawns(bucket: Dictionary) -> void:
 	var ids: PackedInt64Array = bucket["ids"]

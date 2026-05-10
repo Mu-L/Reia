@@ -10,6 +10,7 @@ func process(_entities: Array[Entity], _components: Array, _delta: float) -> voi
 	var buckets := NetworkRouter.client.incoming_buckets
 	if buckets.has(OpCode.ID.CHAT_MESSAGE):
 		_process_chat(buckets[OpCode.ID.CHAT_MESSAGE])
+		NetworkRouter.client.clear_operation(OpCode.ID.CHAT_MESSAGE)
 
 func _process_chat(bucket: Dictionary) -> void:
 	var offsets: PackedInt32Array = bucket["offsets"]

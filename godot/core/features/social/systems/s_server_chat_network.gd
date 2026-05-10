@@ -11,6 +11,7 @@ func process(_entities: Array[Entity], _components: Array, _delta: float) -> voi
 	var buckets := NetworkRouter.server.incoming_buckets
 	if buckets.has(OpCode.ID.SEND_CHAT):
 		_process_chat(buckets[OpCode.ID.SEND_CHAT])
+		NetworkRouter.server.clear_operation(OpCode.ID.SEND_CHAT)
 
 func _process_chat(bucket: Dictionary) -> void:
 	var ids: PackedInt64Array = bucket["ids"]
@@ -20,7 +21,9 @@ func _process_chat(bucket: Dictionary) -> void:
 	for i in range(ids.size()):
 		var client_id := ids[i]
 		var player := EntityMap.server.get_entity(client_id)
-		if not player: continue
+		if not player:
+			push_warning("[ServerChatNetworkSystem] Discarded chat message from unknown client ID: %d" % client_id)
+			continue
 		
 		var username := (player.get_component(C_Username) as C_Username).username
 
@@ -31,9 +34,6 @@ func _process_chat(bucket: Dictionary) -> void:
 		writer.clear()
 		writer.put_string(username)
 		writer.put_string(message)
-		
-		# Broadcast to everyone (this filters by Zone)
-		# We need _get_all_players()
 
-		var all_clients := PackedInt64Array([client_id]) # Dummy representation
+		var all_clients := EntityMap.server.get_all_active_clients()
 		NetworkRouter.server.queue_broadcast(all_clients, OpCode.ID.CHAT_MESSAGE, writer.data_array)
