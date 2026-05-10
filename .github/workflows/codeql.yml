@@ -2,12 +2,14 @@ name: "CodeQL Advanced"
 
 on:
   push:
-    branches: [ "master", "(dex)[/][a-zA-Z0-9-_]+", "(gh-pages)[-src]*" ]
+    branches:
+      - master
     paths:
       - 'rust/**'
       - '.github/workflows/**'
   pull_request:
-    branches: [ "master", "(dex)[/][a-zA-Z0-9-_]+", "(gh-pages)[-src]*" ]
+    branches:
+      - master
     paths:
       - 'rust/**'
       - '.github/workflows/**'
