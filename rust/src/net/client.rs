@@ -40,10 +40,17 @@ impl rustls::client::danger::ServerCertVerifier for SkipServerVerification {
     }
 
     fn supported_verify_schemes(&self) -> Vec<rustls::SignatureScheme> {
+        // Provide all standard schemes to ensure compatibility with rcgen's
+        // defaults (ECDSA, ED25519, RSA)
         vec![
             rustls::SignatureScheme::RSA_PKCS1_SHA256,
+            rustls::SignatureScheme::ECDSA_NISTP256_SHA256,
+            rustls::SignatureScheme::ECDSA_NISTP384_SHA384,
             rustls::SignatureScheme::ED25519,
-            rustls::SignatureScheme::RSA_PSS_SHA256
+            rustls::SignatureScheme::RSA_PSS_SHA256,
+            rustls::SignatureScheme::RSA_PSS_SHA384,
+            rustls::SignatureScheme::RSA_PSS_SHA512,
+            rustls::SignatureScheme::ED448
         ]
     }
 }
@@ -77,67 +84,99 @@ pub async fn start_quinn_client(
 
     let server_addr: SocketAddr = format!("{}:{}", ip, port).parse().unwrap();
 
+    let mut retries = 0;
+    let max_retries = 5;
+
     // "localhost" here matches the dummy cert generated on the server
-    match endpoint.connect(server_addr, "localhost").unwrap().await {
-        Ok(connection) => {
-            tracing::info!("Connected to Server: {}", server_addr);
-            let _ = tx_life.send_async(LifecycleEvent::ClientConnected).await;
+    loop {
+        match endpoint.connect(server_addr, "localhost").unwrap().await {
+            Ok(connection) => {
+                tracing::info!("Connected to Server: {}", server_addr);
+                let _ = tx_life.send_async(LifecycleEvent::ClientConnected).await;
 
-            // Spawn a task to READ incoming datagrams from Server
-            let conn_read = connection.clone();
-            let tx_life_clone = tx_life.clone();
+                // Spawn a task to READ incoming datagrams from Server
+                let conn_read = connection.clone();
+                let tx_life_clone = tx_life.clone();
+                let tx_in_clone = tx_in.clone();
 
-            tokio::spawn(async move {
-                loop {
-                    match conn_read.read_datagram().await {
-                        Ok(bytes) => {
-                            if bytes.len() < 2 {
-                                continue;
+                tokio::spawn(async move {
+                    loop {
+                        match conn_read.read_datagram().await {
+                            Ok(bytes) => {
+                                if bytes.len() < 2 {
+                                    continue;
+                                }
+
+                                let op_code_raw = u16::from_le_bytes([bytes[0], bytes[1]]);
+
+                                // Validate against our generated registry
+                                if let Ok(_valid_op) = OpCode::try_from(op_code_raw) {
+                                    let packet = IncomingPacket {
+                                        client_id: 0, // 0 signifies the Server
+                                        op_code: op_code_raw,
+                                        payload: bytes.to_vec(),
+                                    };
+                                    let _ = tx_in_clone.send_async(packet).await;
+                                } else {
+                                    tracing::warn!("Server sent unknown OpCode: {}", op_code_raw);
+                                }
                             }
-
-                            let op_code_raw = u16::from_le_bytes([bytes[0], bytes[1]]);
-
-                            // Validate against our generated registry
-                            if let Ok(_valid_op) = OpCode::try_from(op_code_raw) {
-                                let packet = IncomingPacket {
-                                    client_id: 0, // 0 signifies the Server
-                                    op_code: op_code_raw,
-                                    payload: bytes.to_vec(),
-                                };
-                                let _ = tx_in.send_async(packet).await;
-                            } else {
-                                tracing::warn!("Server sent unknown OpCode: {}", op_code_raw);
-                            }
+                            Err(e) => {
+                                tracing::warn!("Read connection lost: {}", e);
+                                // Send clean, user-friendly error to Godot
+                                let _ = tx_life_clone.send_async(
+                                    LifecycleEvent::ClientDisconnected(
+                                        "Connection to the server was lost.".to_string()
+                                    )
+                                ).await;
+                                break;
+                            } // Disconnected
                         }
-                        Err(e) => {
-                            let _ = tx_life_clone.send_async(
-                                LifecycleEvent::ClientDisconnected(e.to_string())
-                            ).await;
-                            break;
-                        } // Disconnected
+                    }
+                });
+
+                // Loop to WRITE outgoing datagrams to Server
+                while let Ok(outgoing) = rx_out.recv_async().await {
+                    // Pack the 2-byte OpCode and the Godot Payload into a single network buffer
+                    let mut buffer = Vec::with_capacity(2 + outgoing.payload.len());
+                    buffer.extend_from_slice(&outgoing.op_code.to_le_bytes());
+                    buffer.extend_from_slice(&outgoing.payload);
+
+                    if connection.send_datagram(buffer.into()).is_err() {
+                        tracing::error!("Failed to send datagram to server. Connection lost.");
+                        let _ = tx_life.send_async(
+                            LifecycleEvent::ClientDisconnected(
+                                "Connection to the server was lost.".to_string()
+                            )
+                        ).await;
+                        break;
                     }
                 }
-            });
 
-            // Loop to WRITE outgoing datagrams to Server
-            while let Ok(outgoing) = rx_out.recv_async().await {
-                // Pack the 2-byte OpCode and the Godot Payload into a single network buffer
-                let mut buffer = Vec::with_capacity(2 + outgoing.payload.len());
-                buffer.extend_from_slice(&outgoing.op_code.to_le_bytes());
-                buffer.extend_from_slice(&outgoing.payload);
+                // If rx_out closes, Godot has shut down the client. Break out of retry loop.
+                break;
+            }
+            Err(e) => {
+                // Log the raw, complex crypto/timeout errors to the Rust console for developers
+                tracing::warn!("Connection attempt {} failed: {}", retries + 1, e);
 
-                if connection.send_datagram(buffer.into()).is_err() {
-                    tracing::error!("Failed to send datagram to server. Connection lost.");
+                if retries >= max_retries {
+                    tracing::error!("All retries failed. Giving up.");
+
+                    // Send a sanitized, friendly string to the Godot UI!
                     let _ = tx_life.send_async(
-                        LifecycleEvent::ClientDisconnected("Connection closed".to_string())
+                        LifecycleEvent::ClientDisconnected(
+                            "Unable to reach the server. Please check your connection and try again.".to_string()
+                        )
                     ).await;
                     break;
                 }
+
+                // Exponential backoff: 1s, 2s, 4s, 8s, 16s
+                let backoff = 1 << retries;
+                tokio::time::sleep(std::time::Duration::from_secs(backoff)).await;
+                retries += 1;
             }
-        }
-        Err(e) => {
-            tracing::error!("Failed to connect: {}", e);
-            let _ = tx_life.send_async(LifecycleEvent::ClientDisconnected(e.to_string())).await;
         }
     }
 }

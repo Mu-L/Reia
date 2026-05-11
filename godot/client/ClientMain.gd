@@ -55,7 +55,7 @@ func _on_network_disconnected(reason: String) -> void:
 
 	# Return the user to the Main Menu and alert them
 	SceneManager.transition_to_screen(Scenes.Menus.TITLE_SCREEN)
-	UIModalManager.show_notification("Connection Lost", reason)
+	UIModalManager.show_notification("Connection Failed", reason)
 
 func _send_auth_request() -> void:
 	var writer := StreamPeerBuffer.new()
