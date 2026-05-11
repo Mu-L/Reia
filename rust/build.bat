@@ -43,8 +43,8 @@ if not exist "%OUT_DIR%" (
 )
 
 :: Copy and Rename the DLL
-echo Copying binary to %OUT_DIR%\reia_backend.!BUILD_TYPE!.dll...
-copy /Y "target\!TARGET_DIR!\reia_backend.dll" "%OUT_DIR%\reia_backend.!BUILD_TYPE!.dll" >nul
+echo Copying binary to %OUT_DIR%\!FINAL_FILENAME!...
+copy /Y "target\!TARGET_DIR!\reia_backend.dll" "%OUT_DIR%\!FINAL_FILENAME!" >nul
 
 if %ERRORLEVEL% NEQ 0 (
     echo Failed to copy DLL! Ensure Godot is not currently locking the file.
