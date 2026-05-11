@@ -86,6 +86,11 @@ folder_colors={
 "res://shared_nodes/": "purple"
 }
 
+[gecs]
+
+settings/log_level=1
+settings/debug_mode=true
+
 [gui]
 
 theme/custom="uid://c5848jpc4wmx4"

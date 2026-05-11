@@ -44,7 +44,7 @@ pub async fn handle_client(
                         let packet = IncomingPacket {
                             client_id, // Safely stamp with server-generated ID
                             op_code: op_code_raw, // Pass the raw u16 up the bridge
-                            payload: bytes.to_vec(), // Pass the full payload for Godot/rkyv to parse
+                            payload: bytes[2..].to_vec(), // Pass the full payload for Godot/rkyv to parse
                         };
 
                         // Push to the Flume channel so Godot can pop it in poll_network()

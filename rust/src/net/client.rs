@@ -114,7 +114,7 @@ pub async fn start_quinn_client(
                                     let packet = IncomingPacket {
                                         client_id: 0, // 0 signifies the Server
                                         op_code: op_code_raw,
-                                        payload: bytes.to_vec(),
+                                        payload: bytes[2..].to_vec(),
                                     };
                                     let _ = tx_in_clone.send_async(packet).await;
                                 } else {
