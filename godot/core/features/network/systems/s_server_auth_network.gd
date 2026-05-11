@@ -52,13 +52,12 @@ func _process_auth(bucket: Dictionary) -> void:
 
 		player.add_child(body)
 
-		GameOrchestrator.server_world.add_child(player)
 		cmd.add_entity(player)
 
 		# Send Auth Success uniquely back to the joining Client
 		writer.clear()
 		writer.put_64(net_id)
-		writer.put_u32(Zone.ID.WATERBROOK)
+		writer.put_u32(Zone.ID.JADEWATER_FALLS)
 		NetworkRouter.server.queue_packet(client_connection_id, OpCode.ID.AUTH_SUCCESS, writer.data_array)
 
 		# Broadcast the Entity Spawn so everyone can see the new player
@@ -100,7 +99,6 @@ func _spawn_test_dummy() -> void:
 	body.set_collision_layer_value(13, true)
 	dummy.add_child(body)
 
-	GameOrchestrator.server_world.add_child(dummy)
 	cmd.add_entity(dummy)
 
 	writer.clear()
