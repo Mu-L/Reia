@@ -127,26 +127,17 @@ impl RustCore {
             for event in rx_life.try_iter() {
                 match event {
                     LifecycleEvent::ClientConnected => {
-                        self.base_mut().emit_signal("on_client_connected", &[]);
+                        self.signals().on_client_connected().emit();
                     }
                     LifecycleEvent::ClientDisconnected(reason) => {
                         let gd_reason = GString::from(&reason);
-                        self.base_mut().emit_signal(
-                            "on_client_disconnected",
-                            &[gd_reason.to_variant()]
-                        );
+                        self.signals().on_client_disconnected().emit(&gd_reason);
                     }
                     LifecycleEvent::ServerClientConnected(client_id) => {
-                        self.base_mut().emit_signal(
-                            "on_server_client_connected",
-                            &[client_id.to_variant()]
-                        );
+                        self.signals().on_server_client_connected().emit(client_id);
                     }
                     LifecycleEvent::ServerClientDisconnected(client_id) => {
-                        self.base_mut().emit_signal(
-                            "on_server_client_disconnected",
-                            &[client_id.to_variant()]
-                        );
+                        self.signals().on_server_client_disconnected().emit(client_id);
                     }
                 }
             }
@@ -187,15 +178,14 @@ impl RustCore {
             let mut inner_dict = VarDictionary::new();
 
             // Zero-copy-ish conversion from Rust Vec to Godot PackedArrays
-            inner_dict.set("ids", PackedInt64Array::from(bucket.ids.as_slice()));
-            inner_dict.set("data", PackedByteArray::from(bucket.data.as_slice()));
-            inner_dict.set("offsets", PackedInt32Array::from(bucket.offsets.as_slice()));
+            inner_dict.set("ids", &PackedInt64Array::from(bucket.ids.as_slice()));
+            inner_dict.set("data", &PackedByteArray::from(bucket.data.as_slice()));
+            inner_dict.set("offsets", &PackedInt32Array::from(bucket.offsets.as_slice()));
 
-            godot_buckets.set(op_code, inner_dict);
+            godot_buckets.set(op_code, &inner_dict);
         }
 
-        // Emit the batched dictionary across the FFI bridge
-        self.base_mut().emit_signal("on_network_events", &[godot_buckets.to_variant()]);
+        self.signals().on_network_events().emit(&godot_buckets);
     }
 
     /// Safely pushes an array of packets from Godot into the Tokio thread in one call
