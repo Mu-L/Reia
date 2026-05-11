@@ -1,4 +1,4 @@
-use crate::net::{ op_codes::OpCode, packets::IncomingPacket };
+use crate::net::{ op_codes::OpCode, packets::{ IncomingPacket, LifecycleEvent } };
 use dashmap::DashMap;
 use flume::Sender;
 use quinn::Connection;
@@ -8,6 +8,7 @@ pub async fn handle_client(
     client_id: i64,
     conn: Connection,
     tx: Sender<IncomingPacket>,
+    tx_life: Sender<LifecycleEvent>,
     connections: Arc<DashMap<i64, Connection>>
 ) {
     // Loop to read Unreliable Datagrams (Movement/Physics)
@@ -72,4 +73,7 @@ pub async fn handle_client(
 
     // Clean up connection map on disconnect
     connections.remove(&client_id);
+
+    // Notify Godot that this client has disconnected
+    let _ = tx_life.send_async(LifecycleEvent::ServerClientDisconnected(client_id)).await;
 }

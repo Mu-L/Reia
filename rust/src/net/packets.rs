@@ -14,6 +14,14 @@ pub struct OutgoingPacket {
     pub payload: Vec<u8>,
 }
 
+/// Represents connection state changes from the Quinn network layer
+pub enum LifecycleEvent {
+    ClientConnected,
+    ClientDisconnected(String),
+    ServerClientConnected(i64),
+    ServerClientDisconnected(i64),
+}
+
 // ==========================================
 // RKYV PROTOCOLS (Zero-Copy Networking)
 // ==========================================

@@ -31,15 +31,31 @@ func _ready() -> void:
 		rust_core = RustCore.new()
 		add_child(rust_core)
 		UIUtils.safe_connect(rust_core.on_network_events, _on_rust_packets, "ClientMain on_network_events")
+
+		# Bind network lifecycle signals
+		UIUtils.safe_connect(rust_core.on_client_connected, _on_network_connected, "ClientMain on_client_connected")
+		UIUtils.safe_connect(rust_core.on_client_disconnected, _on_network_disconnected, "ClientMain on_client_disconnected")
+
+
 		rust_core.start_client(ip, port)
 
 		print("[CLIENT] Connecting to server at %s:%d..." % [ip, port])
 	else:
 		print("[CLIENT] Offline mode enabled. Skipping network initialization.")
 
-	# We wait one frame to ensure the Orchestrator loopback is fully wired,
-	# then we securely send our AuthRequest packet!
-	call_deferred("_send_auth_request")
+		# In offline mode, immediately authenticate
+		call_deferred("_send_auth_request")
+
+func _on_network_connected() -> void:
+	print("[CLIENT] Connection established! Requesting Authentication...")
+	_send_auth_request()
+
+func _on_network_disconnected(reason: String) -> void:
+	print("[CLIENT] Disconnected from server: ", reason)
+
+	# Return the user to the Main Menu and alert them
+	SceneManager.transition_to_screen(Scenes.Menus.TITLE_SCREEN)
+	UIModalManager.show_notification("Connection Lost", reason)
 
 func _send_auth_request() -> void:
 	var writer := StreamPeerBuffer.new()

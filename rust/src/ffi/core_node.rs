@@ -4,7 +4,7 @@ use std::sync::Arc;
 use tokio::runtime::Runtime;
 
 use crate::net::client::start_quinn_client;
-use crate::net::packets::{ IncomingPacket, OutgoingPacket };
+use crate::net::packets::{ IncomingPacket, LifecycleEvent, OutgoingPacket };
 use crate::net::server::start_quinn_server;
 use crate::state::world_state::WorldState;
 
@@ -28,6 +28,8 @@ pub struct RustCore {
     rx_from_net: Option<Receiver<IncomingPacket>>, // Tokio -> Godot channel
     tx_to_net: Option<flume::Sender<OutgoingPacket>>, // Godot -> Tokio channel
 
+    rx_lifecycle: Option<Receiver<LifecycleEvent>>, // Handles connections/disconnections
+
     // High-performance concurrent state for math
     world_state: Arc<WorldState>,
 }
@@ -40,6 +42,7 @@ impl INode for RustCore {
             tokio_runtime: None,
             rx_from_net: None,
             tx_to_net: None,
+            rx_lifecycle: None,
             world_state: Arc::new(WorldState::new()),
         }
     }
@@ -52,6 +55,19 @@ impl RustCore {
     #[signal]
     pub fn on_network_events(batched_buckets: VarDictionary);
 
+    // Network Lifecycle Signals for Godot
+    #[signal]
+    pub fn on_client_connected();
+
+    #[signal]
+    pub fn on_client_disconnected(reason: GString);
+
+    #[signal]
+    pub fn on_server_client_connected(client_id: i64);
+
+    #[signal]
+    pub fn on_server_client_disconnected(client_id: i64);
+
     /// Called by ServerMain.gd in _ready()
     #[func]
     pub fn start_backend(&mut self, port: u16) {
@@ -63,14 +79,16 @@ impl RustCore {
         // Create the cross-thread bridge
         let (tx, rx) = flume::unbounded::<IncomingPacket>();
         let (tx_out, rx_out) = flume::unbounded::<OutgoingPacket>();
+        let (tx_life, rx_life) = flume::unbounded::<LifecycleEvent>();
 
         self.rx_from_net = Some(rx);
         self.tx_to_net = Some(tx_out);
+        self.rx_lifecycle = Some(rx_life);
 
         // Spawn the Quinn Server in the background
         let state_clone = self.world_state.clone();
         rt.spawn(async move {
-            start_quinn_server(port, tx, rx_out, state_clone).await;
+            start_quinn_server(port, tx, rx_out, tx_life, state_clone).await;
         });
 
         godot_print!("[Rust] Backend initialized successfully.");
@@ -86,13 +104,15 @@ impl RustCore {
 
         let (tx_in, rx_in) = flume::unbounded::<IncomingPacket>();
         let (tx_out, rx_out) = flume::unbounded::<OutgoingPacket>();
+        let (tx_life, rx_life) = flume::unbounded::<LifecycleEvent>();
 
         self.rx_from_net = Some(rx_in);
         self.tx_to_net = Some(tx_out); // Save sender for Godot to use
+        self.rx_lifecycle = Some(rx_life);
 
         let ip_str = server_ip.to_string();
         rt.spawn(async move {
-            start_quinn_client(ip_str, port, tx_in, rx_out).await;
+            start_quinn_client(ip_str, port, tx_in, rx_out, tx_life).await;
         });
 
         godot_print!("[Rust] Client network task spawned.");
@@ -101,7 +121,40 @@ impl RustCore {
     /// Called by ServerMain.gd inside _physics_process() EVERY FRAME
     #[func]
     pub fn poll_network(&mut self) {
-        let Some(rx) = &self.rx_from_net.clone() else {
+        // Process lifecycle events
+        let rx_life_opt = self.rx_lifecycle.clone();
+        if let Some(rx_life) = rx_life_opt {
+            for event in rx_life.try_iter() {
+                match event {
+                    LifecycleEvent::ClientConnected => {
+                        self.base_mut().emit_signal("on_client_connected", &[]);
+                    }
+                    LifecycleEvent::ClientDisconnected(reason) => {
+                        let gd_reason = GString::from(&reason);
+                        self.base_mut().emit_signal(
+                            "on_client_disconnected",
+                            &[gd_reason.to_variant()]
+                        );
+                    }
+                    LifecycleEvent::ServerClientConnected(client_id) => {
+                        self.base_mut().emit_signal(
+                            "on_server_client_connected",
+                            &[client_id.to_variant()]
+                        );
+                    }
+                    LifecycleEvent::ServerClientDisconnected(client_id) => {
+                        self.base_mut().emit_signal(
+                            "on_server_client_disconnected",
+                            &[client_id.to_variant()]
+                        );
+                    }
+                }
+            }
+        }
+
+        // Process incoming packets and batch them by OpCode
+        let rx_net_opt = self.rx_from_net.clone();
+        let Some(rx) = rx_net_opt else {
             return;
         };
 

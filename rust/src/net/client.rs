@@ -1,5 +1,5 @@
 use crate::net::op_codes::OpCode;
-use crate::net::packets::{ IncomingPacket, OutgoingPacket };
+use crate::net::packets::{ IncomingPacket, LifecycleEvent, OutgoingPacket };
 use flume::{ Receiver, Sender };
 use quinn::{ ClientConfig, Endpoint };
 use std::net::SocketAddr;
@@ -52,7 +52,8 @@ pub async fn start_quinn_client(
     ip: String,
     port: u16,
     tx_in: Sender<IncomingPacket>,
-    rx_out: Receiver<OutgoingPacket>
+    rx_out: Receiver<OutgoingPacket>,
+    tx_life: Sender<LifecycleEvent>
 ) {
     let _ = rustls::crypto::ring::default_provider().install_default();
 
@@ -80,9 +81,12 @@ pub async fn start_quinn_client(
     match endpoint.connect(server_addr, "localhost").unwrap().await {
         Ok(connection) => {
             tracing::info!("Connected to Server: {}", server_addr);
+            let _ = tx_life.send_async(LifecycleEvent::ClientConnected).await;
 
             // Spawn a task to READ incoming datagrams from Server
             let conn_read = connection.clone();
+            let tx_life_clone = tx_life.clone();
+
             tokio::spawn(async move {
                 loop {
                     match conn_read.read_datagram().await {
@@ -105,7 +109,10 @@ pub async fn start_quinn_client(
                                 tracing::warn!("Server sent unknown OpCode: {}", op_code_raw);
                             }
                         }
-                        Err(_) => {
+                        Err(e) => {
+                            let _ = tx_life_clone.send_async(
+                                LifecycleEvent::ClientDisconnected(e.to_string())
+                            ).await;
                             break;
                         } // Disconnected
                     }
@@ -121,10 +128,16 @@ pub async fn start_quinn_client(
 
                 if connection.send_datagram(buffer.into()).is_err() {
                     tracing::error!("Failed to send datagram to server. Connection lost.");
+                    let _ = tx_life.send_async(
+                        LifecycleEvent::ClientDisconnected("Connection closed".to_string())
+                    ).await;
                     break;
                 }
             }
         }
-        Err(e) => tracing::error!("Failed to connect: {}", e),
+        Err(e) => {
+            tracing::error!("Failed to connect: {}", e);
+            let _ = tx_life.send_async(LifecycleEvent::ClientDisconnected(e.to_string())).await;
+        }
     }
 }

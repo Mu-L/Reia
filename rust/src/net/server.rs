@@ -1,4 +1,4 @@
-use crate::net::packets::{ IncomingPacket, OutgoingPacket };
+use crate::net::packets::{ IncomingPacket, LifecycleEvent, OutgoingPacket };
 use crate::state::world_state::WorldState;
 
 use dashmap::DashMap;
@@ -13,6 +13,7 @@ pub async fn start_quinn_server(
     port: u16,
     tx: Sender<IncomingPacket>,
     rx_out: Receiver<OutgoingPacket>,
+    tx_life: Sender<LifecycleEvent>,
     _state: Arc<WorldState>
 ) {
     // Explicitly install the Crypto Provider for rustls
@@ -67,6 +68,7 @@ pub async fn start_quinn_server(
     // Listen for connections asynchronously
     while let Some(conn) = endpoint.accept().await {
         let tx_clone = tx.clone();
+        let tx_life_clone = tx_life.clone();
         let connections_clone = connections.clone();
         let id_counter = client_id_counter.clone();
 
@@ -80,11 +82,18 @@ pub async fn start_quinn_server(
                         connection.remote_address(),
                         client_id
                     );
+
+                    // Notify Godot
+                    let _ = tx_life_clone.send_async(
+                        LifecycleEvent::ServerClientConnected(client_id)
+                    ).await;
+
                     // Route to connection handler (reading streams/datagrams)
                     crate::net::connection::handle_client(
                         client_id,
                         connection,
                         tx_clone,
+                        tx_life_clone,
                         connections_clone
                     ).await;
                 }
