@@ -37,7 +37,7 @@ func _ready() -> void:
 func _on_login_success(zone_id: int) -> void:
 	# Spawn the in-game HUD (Automatically deletes the TitleScreen)
 	transition_to_screen(Scenes.Hud.MAIN_HUD)
-	
+
 	# Teleport to the designated server map
 	teleport_to_zone(zone_id)
 

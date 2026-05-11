@@ -53,7 +53,7 @@ impl RustCore {
     /// Emits a SINGLE dictionary containing our batched buckets.
     /// Format: { OpCode: { "ids": PackedInt64, "data": PackedByteArray, "offsets": PackedInt32 } }
     #[signal]
-    pub fn on_network_events(batched_buckets: VarDictionary);
+    pub fn on_network_events(batched_buckets: Dictionary<u16, VarDictionary>);
 
     // Network Lifecycle Signals for Godot
     #[signal]
@@ -172,7 +172,7 @@ impl RustCore {
         }
 
         // Convert to Godot Dictionary exactly ONCE per frame
-        let mut godot_buckets = VarDictionary::new();
+        let mut godot_buckets = Dictionary::<u16, VarDictionary>::new();
 
         for (op_code, bucket) in buckets {
             let mut inner_dict = VarDictionary::new();

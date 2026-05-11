@@ -24,7 +24,7 @@ func _process_auth_success(bucket: Dictionary) -> void:
 
 		# Store who WE are so the Spawner System knows which mesh gets the camera
 		GameOrchestrator.local_client_net_id = my_net_id
-		
+
 		# Fire to the UI to drop the TitleScreen and load the map
 		UIEventBus.auth.login_success.emit(zone_id)
 		break # Only process Auth once per client

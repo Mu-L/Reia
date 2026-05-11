@@ -31,7 +31,7 @@ func _ready() -> void:
 		add_child(rust_core)
 		UIUtils.safe_connect(rust_core.on_network_events, _on_rust_packets, "ServerMain on_network_events")
 
-		# --- NEW: Bind Network Lifecycle Signals ---
+		# Bind network lifecycle signals
 		UIUtils.safe_connect(rust_core.on_server_client_connected, _on_client_connected, "ServerMain on_server_client_connected")
 		UIUtils.safe_connect(rust_core.on_server_client_disconnected, _on_client_disconnected, "ServerMain on_server_client_disconnected")
 
@@ -49,16 +49,15 @@ func _on_client_connected(client_id: int) -> void:
 func _on_client_disconnected(client_id: int) -> void:
 	print("[SERVER] Client Disconnected. Socket ID: ", client_id)
 
-	# 1. Lookup the ECS Entity mapped to this client ID
-	var player_entity = EntityMap.server.get_entity(client_id)
+	var player_entity := EntityMap.server.get_entity(client_id)
 	if not player_entity: return
 
 	# TODO: Fetch their Zone ID, XYZ coordinates, and Health and save it to the Turso Database here!
 
-	var world = GameOrchestrator.server_world
+	var world := GameOrchestrator.server_world
 	if not world: return
 
-	# 2. Tell all other clients that this player left (Optional: we can implement ENTITY_DESPAWN later)
+	# Tell all other clients that this player left (TODO: Implement ENTITY_DESPAWN later)
 	# For now, we will just completely remove them from the Server ECS and free their Godot Node.
 	world.remove_entity(player_entity)
 	var node := player_entity as Node
