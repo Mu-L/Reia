@@ -7,10 +7,9 @@ func query() -> QueryBuilder:
 	return super.query()
 
 func process(_entities: Array[Entity], _components: Array, _delta: float) -> void:
-	var buckets := NetworkRouter.client.incoming_buckets
-	if buckets.has(OpCode.ID.CHAT_MESSAGE):
-		_process_chat(buckets[OpCode.ID.CHAT_MESSAGE])
-		NetworkRouter.client.clear_operation(OpCode.ID.CHAT_MESSAGE)
+	var chat_message_bucket := NetworkRouter.client.consume_bucket(OpCode.ID.CHAT_MESSAGE)
+	if not chat_message_bucket.is_empty():
+		_process_chat(chat_message_bucket)
 
 func _process_chat(bucket: Dictionary) -> void:
 	var offsets: PackedInt32Array = bucket["offsets"]

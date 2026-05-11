@@ -8,10 +8,9 @@ func query() -> QueryBuilder:
 	return super.query()
 
 func process(_entities: Array[Entity], _components: Array, _delta: float) -> void:
-	var buckets := NetworkRouter.client.incoming_buckets
-	if buckets.has(OpCode.ID.ENTITY_SPAWN):
-		_process_spawns(buckets[OpCode.ID.ENTITY_SPAWN])
-		NetworkRouter.client.clear_operation(OpCode.ID.ENTITY_SPAWN)
+	var entity_spawn_bucket := NetworkRouter.client.consume_bucket(OpCode.ID.ENTITY_SPAWN)
+	if not entity_spawn_bucket.is_empty():
+		_process_spawns(entity_spawn_bucket)
 
 func _process_spawns(bucket: Dictionary) -> void:
 	var ids: PackedInt64Array = bucket["ids"]

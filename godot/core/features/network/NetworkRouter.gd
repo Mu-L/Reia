@@ -86,12 +86,16 @@ class NetworkChannel extends RefCounted:
 
 		reset_outbox()
 
-	## Called by any system that that processes its own OpCode.
-	## This makes sure that the operation isn't processed again until the next network tick, and also clears memory.
-	func clear_operation(op_code: int) -> void:
-		var buckets_success := incoming_buckets.erase(op_code)
-		if not buckets_success:
-			push_error("[NetworkRouter] Failed to clear operation: %d" % op_code)
+	## Retrieves a bucket and immediately removes it from the inbox to prevent duplicate processing
+	func consume_bucket(op_code: int) -> Dictionary:
+		if incoming_buckets.has(op_code):
+			var bucket := incoming_buckets[op_code]
+			var buckets_success := incoming_buckets.erase(op_code)
+			if not buckets_success:
+				push_error("[NetworkRouter] Failed to consume bucket for op_code: %d" % op_code)
+			else:
+				return bucket
+		return {}
 
 	func clear_inbox() -> void:
 		incoming_buckets.clear()

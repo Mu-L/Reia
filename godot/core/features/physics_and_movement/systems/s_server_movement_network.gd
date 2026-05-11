@@ -7,12 +7,9 @@ func query() -> QueryBuilder:
 	return super.query()
 
 func process(_entities: Array[Entity], _components: Array, _delta: float) -> void:
-	# Read specifically from the SERVER namespace
-	var buckets := NetworkRouter.server.incoming_buckets
-	if buckets.is_empty(): return
-
-	if buckets.has(OpCode.ID.INPUT_TICK):
-		_process_input_ticks(buckets[OpCode.ID.INPUT_TICK])
+	var input_tick_bucket := NetworkRouter.server.consume_bucket(OpCode.ID.INPUT_TICK)
+	if not input_tick_bucket.is_empty():
+		_process_input_ticks(input_tick_bucket)
 
 func _process_input_ticks(bucket: Dictionary) -> void:
 	var ids: PackedInt64Array = bucket["ids"]

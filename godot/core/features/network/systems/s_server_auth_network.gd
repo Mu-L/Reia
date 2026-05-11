@@ -12,9 +12,9 @@ func query() -> QueryBuilder:
 	return super.query()
 
 func process(_entities: Array[Entity], _components: Array, _delta: float) -> void:
-	var buckets := NetworkRouter.server.incoming_buckets
-	if buckets.has(OpCode.ID.AUTH_REQUEST):
-		_process_auth(buckets[OpCode.ID.AUTH_REQUEST])
+	var auth_request_bucket := NetworkRouter.server.consume_bucket(OpCode.ID.AUTH_REQUEST)
+	if not auth_request_bucket.is_empty():
+		_process_auth(auth_request_bucket)
 
 func _process_auth(bucket: Dictionary) -> void:
 	var ids: PackedInt64Array = bucket["ids"]

@@ -7,15 +7,13 @@ func query() -> QueryBuilder:
 	return super.query()
 
 func process(_entities: Array[Entity], _components: Array, _delta: float) -> void:
-	var buckets := NetworkRouter.server.incoming_buckets
-	if buckets.is_empty(): return
-	
-	# Process all inventory-domain OpCodes
-	if buckets.has(OpCode.ID.PICKUP_ITEM):
-		_process_pickup(buckets[OpCode.ID.PICKUP_ITEM])
+	var pickup_item_bucket := NetworkRouter.server.consume_bucket(OpCode.ID.PICKUP_ITEM)
+	if not pickup_item_bucket.is_empty():
+		_process_pickup(pickup_item_bucket)
 
-	if buckets.has(OpCode.ID.BURY_ITEM):
-		_process_bury(buckets[OpCode.ID.BURY_ITEM])
+	var bury_item_bucket := NetworkRouter.server.consume_bucket(OpCode.ID.BURY_ITEM)
+	if not bury_item_bucket.is_empty():
+		_process_bury(bury_item_bucket)
 
 func _process_pickup(bucket: Dictionary) -> void:
 	var ids: PackedInt64Array = bucket["ids"]

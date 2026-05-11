@@ -7,11 +7,9 @@ func query() -> QueryBuilder:
 	return super.query()
 
 func process(_entities: Array[Entity], _components: Array, _delta: float) -> void:
-	var buckets := NetworkRouter.client.incoming_buckets
-	if buckets.is_empty(): return
-	
-	if buckets.has(OpCode.ID.STATE_SYNC):
-		_process_state_sync(buckets[OpCode.ID.STATE_SYNC])
+	var state_sync_bucket := NetworkRouter.client.consume_bucket(OpCode.ID.STATE_SYNC)
+	if not state_sync_bucket.is_empty():
+		_process_state_sync(state_sync_bucket)
 
 func _process_state_sync(bucket: Dictionary) -> void:
 	# State Syncs are usually broadcasted, so there's usually only 1 "packet" in the bucket
