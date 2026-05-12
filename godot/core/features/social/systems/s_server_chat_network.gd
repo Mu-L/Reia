@@ -23,12 +23,12 @@ func _process_chat(bucket: Dictionary) -> void:
 		if not player:
 			push_warning("[ServerChatNetworkSystem] Discarded chat message from unknown client ID: %d" % client_id)
 			continue
-		
+
 		var username := (player.get_component(C_Username) as C_Username).username
 
 		reader.seek(offsets[i])
 		var message := reader.get_string()
-		
+
 		# Prepare broadcast payload
 		writer.clear()
 		writer.put_string(username)

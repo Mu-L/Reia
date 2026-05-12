@@ -21,17 +21,15 @@ func _process_auth(bucket: Dictionary) -> void:
 	var offsets: PackedInt32Array = bucket["offsets"]
 	reader.data_array = bucket["data"]
 
+	# Store the network data for all players joining this frame
+	var newly_joined_clients := []
+
 	for i in range(ids.size()):
-		var client_connection_id := ids[i]
+		var net_id := ids[i]
 
 		reader.seek(offsets[i])
 		var username := reader.get_string()
 		var _token := reader.get_string()
-
-		# TODO: Validate the token and username against a database or authentication service.
-		# For now, we will skip this step and assume all auth requests are valid.
-		# Generate a dummy Network ID
-		var net_id := randi() % 1000000 + 1
 
 		# Construct the logical Server Player Entity
 		var player := Entity.new()
@@ -54,11 +52,27 @@ func _process_auth(bucket: Dictionary) -> void:
 
 		cmd.add_entity(player)
 
+		newly_joined_clients.append({
+			"net_id": net_id,
+			"username": username
+		})
+
+	# Queue the dummy if needed
+	var spawn_dummy := false
+	if not _has_spawned_dummy:
+		_queue_test_dummy()
+		_has_spawned_dummy = true
+		spawn_dummy = true
+	cmd.execute()
+	var all_clients := EntityMap.server.get_all_active_clients() # TODO: Think of how to optimize this.
+	for client: Dictionary in newly_joined_clients:
+		var net_id: int = client["net_id"]
+		var username: String = client["username"]
 		# Send Auth Success uniquely back to the joining Client
 		writer.clear()
 		writer.put_64(net_id)
-		writer.put_u32(Zone.ID.JADEWATER_FALLS)
-		NetworkRouter.server.queue_packet(client_connection_id, OpCode.ID.AUTH_SUCCESS, writer.data_array)
+		writer.put_u32(Zone.ID.WATERBROOK)
+		NetworkRouter.server.queue_packet(net_id, OpCode.ID.AUTH_SUCCESS, writer.data_array)
 
 		# Broadcast the Entity Spawn so everyone can see the new player
 		writer.clear()
@@ -69,19 +83,12 @@ func _process_auth(bucket: Dictionary) -> void:
 		writer.put_float(5.0) # Y
 		writer.put_float(0.0) # Z
 
-		# Automatically fetch the centralized list to broadcast the spawn
-		# TODO: We'll want to optimize this by mantaining a separate list
-		# and also a list of nearby clients too.
-		var all_clients := EntityMap.server.get_all_active_clients()
 		NetworkRouter.server.queue_broadcast(all_clients, OpCode.ID.ENTITY_SPAWN, writer.data_array)
 
-		# TODO: Remove this hack once we have proper player movement and world interaction, to avoid confusion.
-		# DEMO HACK: Spawn the test dummy for the first player that connects!
-		if not _has_spawned_dummy:
-			_spawn_test_dummy()
-			_has_spawned_dummy = true
+	if spawn_dummy:
+		_broadcast_test_dummy(all_clients)
 
-func _spawn_test_dummy() -> void:
+func _queue_test_dummy() -> void:
 	var dummy := Entity.new()
 	var net_id := -1
 
@@ -101,14 +108,14 @@ func _spawn_test_dummy() -> void:
 
 	cmd.add_entity(dummy)
 
+func _broadcast_test_dummy(all_clients: PackedInt64Array) -> void:
 	writer.clear()
-	writer.put_64(net_id)
+	writer.put_64(-1)
 	writer.put_string("PLAYER") # TODO: This could be improved possibly by using an enum type
 	writer.put_string("Training Dummy")
 	writer.put_float(0.0)
 	writer.put_float(1.0)
 	writer.put_float(-5.0)
 
-	var all_clients := EntityMap.server.get_all_active_clients()
 	NetworkRouter.server.queue_broadcast(all_clients, OpCode.ID.ENTITY_SPAWN, writer.data_array)
 	print("[SERVER] Spawned Test Dummy.")

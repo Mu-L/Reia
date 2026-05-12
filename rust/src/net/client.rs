@@ -1,9 +1,10 @@
 use crate::net::op_codes::OpCode;
 use crate::net::packets::{ IncomingPacket, LifecycleEvent, OutgoingPacket };
 use flume::{ Receiver, Sender };
-use quinn::{ ClientConfig, Endpoint };
+use quinn::{ ClientConfig, Endpoint, TransportConfig };
 use std::net::SocketAddr;
 use std::sync::Arc;
+use std::time::Duration;
 
 /// A dummy verifier to accept our self-signed rcgen certificates during development.
 #[derive(Debug)]
@@ -74,9 +75,17 @@ pub async fn start_quinn_client(
     // Apply ALPN protocols directly to the rustls config
     crypto.alpn_protocols = vec![b"mmo-proto".to_vec()];
 
+    // Explicitly configure transport settings to prevent drops during Godot Scene Loads
+    let mut transport_config = TransportConfig::default();
+    transport_config.max_idle_timeout(Some(Duration::from_secs(30).try_into().unwrap()));
+    transport_config.keep_alive_interval(Some(Duration::from_secs(5)));
+    transport_config.datagram_receive_buffer_size(Some(usize::MAX));
+    let transport_config = Arc::new(transport_config);
+
     // Quinn requires wrapping the rustls config in `QuicClientConfig`
     let quic_config = quinn::crypto::rustls::QuicClientConfig::try_from(crypto).unwrap();
-    let client_config = ClientConfig::new(Arc::new(quic_config));
+    let mut client_config = ClientConfig::new(Arc::new(quic_config));
+    client_config.transport_config(transport_config);
 
     // Bind to a random local port (0.0.0.0:0) and connect
     let mut endpoint = Endpoint::client("0.0.0.0:0".parse().unwrap()).unwrap();

@@ -4,10 +4,11 @@ use crate::state::world_state::WorldState;
 use dashmap::DashMap;
 use flume::{ Receiver, Sender };
 use quinn::crypto::rustls::QuicServerConfig;
-use quinn::{ Connection, Endpoint, ServerConfig };
+use quinn::{ Connection, Endpoint, ServerConfig, TransportConfig };
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::sync::atomic::{ AtomicI64, Ordering };
+use std::time::{ Duration, SystemTime, UNIX_EPOCH };
 
 pub async fn start_quinn_server(
     port: u16,
@@ -34,8 +35,16 @@ pub async fn start_quinn_server(
 
     server_crypto.alpn_protocols = vec![b"mmo-proto".to_vec()];
 
+    // Explicitly configure transport settings to prevent drops during Godot Scene Loads
+    let mut transport_config = TransportConfig::default();
+    transport_config.max_idle_timeout(Some(Duration::from_secs(30).try_into().unwrap()));
+    transport_config.keep_alive_interval(Some(Duration::from_secs(5)));
+    transport_config.datagram_receive_buffer_size(Some(usize::MAX));
+    let transport_config = Arc::new(transport_config);
+
     let quic_config = QuicServerConfig::try_from(server_crypto).unwrap();
-    let server_config = ServerConfig::with_crypto(Arc::new(quic_config));
+    let mut server_config = ServerConfig::with_crypto(Arc::new(quic_config));
+    server_config.transport_config(transport_config);
 
     // Bind the UDP endpoint
     let addr = format!("0.0.0.0:{}", port).parse::<SocketAddr>().unwrap();
@@ -62,8 +71,10 @@ pub async fn start_quinn_server(
         }
     });
 
-    // Generate sequential client connection IDs
-    let client_id_counter = Arc::new(AtomicI64::new(1));
+    // Generate pseudo-random client connection IDs using the current microsecond timestamp
+    // This acts as a highly unique i64 ID until integrated with Turso DB
+    let time_seed = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_micros() as i64;
+    let client_id_counter = Arc::new(AtomicI64::new(time_seed));
 
     // Listen for connections asynchronously
     while let Some(conn) = endpoint.accept().await {
